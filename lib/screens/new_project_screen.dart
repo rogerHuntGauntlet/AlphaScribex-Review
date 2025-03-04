@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'dart:ui' as ui;
 import 'package:provider/provider.dart';
 import '../services/project_service.dart';
 import '../theme/app_theme.dart';
@@ -24,31 +23,17 @@ class NewProjectScreen extends StatefulWidget {
   State<NewProjectScreen> createState() => _NewProjectScreenState();
 }
 
-class _NewProjectScreenState extends State<NewProjectScreen> with SingleTickerProviderStateMixin {
+class _NewProjectScreenState extends State<NewProjectScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isProcessing = false;
-  String _spokenText = '';
   ProjectType? _selectedType;
-  late AnimationController _animationController;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
-  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -108,26 +93,27 @@ class _NewProjectScreenState extends State<NewProjectScreen> with SingleTickerPr
     setState(() => _isProcessing = true);
 
     try {
-      // Check if title and description are not empty
-      if (_titleController.text.trim().isEmpty) {
+      final title = _titleController.text.trim();
+      final description = _descriptionController.text.trim();
+      
+      if (title.isEmpty) {
         throw Exception('Please enter a project title');
       }
 
-      if (_descriptionController.text.trim().isEmpty) {
+      if (description.isEmpty) {
         throw Exception('Please enter a project description');
       }
 
       final projectService = Provider.of<ProjectService>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // Check if user is authenticated
       if (!authProvider.isAuthenticated) {
         throw Exception('Please sign in to create a project');
       }
 
       await projectService.createProject(
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
+        title: title,
+        description: description,
         type: _selectedType!.name,
       );
 
@@ -158,14 +144,13 @@ class _NewProjectScreenState extends State<NewProjectScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: CupertinoColors.black,
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: AppTheme.surfaceDark.withOpacity(0.9),
+        backgroundColor: CupertinoColors.black,
         middle: Text(
           'New Project',
           style: AppTheme.headingMedium.copyWith(
-            color: AppTheme.primaryNeon,
-            shadows: AppTheme.neonShadow(AppTheme.primaryNeon),
+            color: CupertinoColors.white,
           ),
         ),
         leading: CupertinoButton(
@@ -180,269 +165,189 @@ class _NewProjectScreenState extends State<NewProjectScreen> with SingleTickerPr
         ),
       ),
       child: SafeArea(
-        child: Stack(
-          children: [
-            // Animated background grid
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: GridPainter(
-                      progress: _animation.value,
-                      primaryColor: AppTheme.primaryNeon.withOpacity(0.1),
-                      secondaryColor: AppTheme.primaryTeal.withOpacity(0.05),
-                    ),
-                  );
-                },
-              ),
-            ),
-            // Content
-            Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(AppTheme.spacingL),
-                children: [
-                  // Project Type Selection
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                      border: Border.all(
-                        color: AppTheme.primaryNeon.withOpacity(0.3),
-                        width: 2,
-                      ),
-                      boxShadow: AppTheme.neonShadow(AppTheme.primaryNeon),
-                    ),
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select Project Type',
-                          style: AppTheme.bodyLarge.copyWith(
-                            color: AppTheme.primaryNeon,
-                            shadows: AppTheme.neonShadow(AppTheme.primaryNeon),
-                            fontWeight: FontWeight.bold,
-                          ),
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Project Type Selection
+                    Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.black,
+                        border: Border.all(
+                          color: CupertinoColors.systemGrey,
+                          width: 1,
                         ),
-                        const SizedBox(height: AppTheme.spacingM),
-                        Wrap(
-                          spacing: AppTheme.spacingS,
-                          runSpacing: AppTheme.spacingS,
-                          children: _projectTypes.map((type) => GestureDetector(
-                            onTap: () => setState(() => _selectedType = type),
-                            child: Container(
-                              width: (MediaQuery.of(context).size.width - AppTheme.spacingL * 4) / 2,
-                              padding: const EdgeInsets.all(AppTheme.spacingM),
-                              decoration: BoxDecoration(
-                                color: _selectedType == type
-                                    ? AppTheme.primaryNeon.withOpacity(0.1)
-                                    : AppTheme.backgroundDark.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                                border: Border.all(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Select Project Type',
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _projectTypes.map((type) => GestureDetector(
+                              onTap: () => setState(() => _selectedType = type),
+                              child: Container(
+                                width: (MediaQuery.of(context).size.width - 64) / 2,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
                                   color: _selectedType == type
-                                      ? AppTheme.primaryNeon
-                                      : AppTheme.primaryNeon.withOpacity(0.3),
-                                  width: 2,
-                                ),
-                                boxShadow: _selectedType == type
-                                    ? AppTheme.neonShadow(AppTheme.primaryNeon)
-                                    : null,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    type.icon,
+                                      ? AppTheme.primaryTeal.withOpacity(0.2)
+                                      : CupertinoColors.black,
+                                  border: Border.all(
                                     color: _selectedType == type
-                                        ? AppTheme.primaryNeon
-                                        : AppTheme.surfaceLight.withOpacity(0.7),
-                                    size: 32,
+                                        ? AppTheme.primaryTeal
+                                        : CupertinoColors.systemGrey,
+                                    width: 1,
                                   ),
-                                  const SizedBox(height: AppTheme.spacingS),
-                                  Text(
-                                    type.name,
-                                    style: AppTheme.bodyMedium.copyWith(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      type.icon,
                                       color: _selectedType == type
-                                          ? AppTheme.primaryNeon
-                                          : AppTheme.surfaceLight,
-                                      fontWeight: FontWeight.bold,
-                                      shadows: _selectedType == type
-                                          ? AppTheme.neonShadow(AppTheme.primaryNeon)
-                                          : null,
+                                          ? AppTheme.primaryTeal
+                                          : CupertinoColors.systemGrey,
+                                      size: 32,
                                     ),
-                                  ),
-                                  const SizedBox(height: AppTheme.spacingXS),
-                                  Text(
-                                    type.description,
-                                    style: AppTheme.bodySmall.copyWith(
-                                      color: AppTheme.surfaceLight.withOpacity(0.7),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      type.name,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: _selectedType == type
+                                            ? CupertinoColors.white
+                                            : CupertinoColors.systemGrey,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      type.description,
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: CupertinoColors.systemGrey,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          )).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXL),
-
-                  // Project Details Section
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                      border: Border.all(
-                        color: AppTheme.primaryTeal.withOpacity(0.3),
-                        width: 2,
+                            )).toList(),
+                          ),
+                        ],
                       ),
-                      boxShadow: AppTheme.neonShadow(AppTheme.primaryTeal),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Project Details',
-                          style: AppTheme.bodyLarge.copyWith(
-                            color: AppTheme.primaryTeal,
-                            shadows: AppTheme.neonShadow(AppTheme.primaryTeal),
-                            fontWeight: FontWeight.bold,
-                          ),
+
+                    const SizedBox(height: 24),
+
+                    // Project Details Section
+                    Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.black,
+                        border: Border.all(
+                          color: CupertinoColors.systemGrey,
+                          width: 1,
                         ),
-                        const SizedBox(height: AppTheme.spacingM),
-                        CupertinoTextField(
-                          controller: _titleController,
-                          placeholder: 'Project Title',
-                          padding: const EdgeInsets.all(AppTheme.spacingM),
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: CupertinoColors.black,
-                          ),
-                          placeholderStyle: AppTheme.bodyMedium.copyWith(
-                            color: CupertinoColors.systemGrey,
-                          ),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.white,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                            border: Border.all(
-                              color: AppTheme.primaryTeal.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Project Details',
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: AppTheme.spacingM),
-                        CupertinoTextField(
-                          controller: _descriptionController,
-                          placeholder: 'Project Description',
-                          padding: const EdgeInsets.all(AppTheme.spacingM),
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: CupertinoColors.black,
-                          ),
-                          placeholderStyle: AppTheme.bodyMedium.copyWith(
-                            color: CupertinoColors.systemGrey,
-                          ),
-                          maxLines: 4,
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.white,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                            border: Border.all(
-                              color: AppTheme.primaryTeal.withOpacity(0.3),
+                          const SizedBox(height: 16),
+                          CupertinoTextField(
+                            controller: _titleController,
+                            placeholder: 'Project Title',
+                            padding: const EdgeInsets.all(12),
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: CupertinoColors.white,
+                            ),
+                            placeholderStyle: AppTheme.bodyMedium.copyWith(
+                              color: CupertinoColors.systemGrey,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.black,
+                              border: Border.all(
+                                color: CupertinoColors.systemGrey,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          CupertinoTextField(
+                            controller: _descriptionController,
+                            placeholder: 'Project Description',
+                            padding: const EdgeInsets.all(12),
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: CupertinoColors.white,
+                            ),
+                            placeholderStyle: AppTheme.bodyMedium.copyWith(
+                              color: CupertinoColors.systemGrey,
+                            ),
+                            maxLines: 4,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.black,
+                              border: Border.all(
+                                color: CupertinoColors.systemGrey,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: AppTheme.spacingXL),
+                    const SizedBox(height: 24),
 
-                  // Create Button
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppTheme.spacingM,
-                    ),
-                    onPressed: _isProcessing ? null : _createProject,
-                    color: AppTheme.primaryNeon,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
+                    // Create Button
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      onPressed: _isProcessing ? null : _createProject,
+                      color: AppTheme.primaryTeal,
+                      borderRadius: BorderRadius.circular(8),
                       child: _isProcessing
-                          ? const CupertinoActivityIndicator(color: AppTheme.surfaceLight)
+                          ? const CupertinoActivityIndicator(color: CupertinoColors.white)
                           : Text(
                               'Create Project',
                               style: AppTheme.bodyLarge.copyWith(
-                                color: AppTheme.surfaceLight,
-                                shadows: AppTheme.neonShadow(AppTheme.surfaceLight),
+                                color: CupertinoColors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
-
-class GridPainter extends CustomPainter {
-  final double progress;
-  final Color primaryColor;
-  final Color secondaryColor;
-
-  GridPainter({
-    required this.progress,
-    required this.primaryColor,
-    required this.secondaryColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    const spacing = 30.0;
-    final verticalLines = (size.width / spacing).ceil();
-    final horizontalLines = (size.height / spacing).ceil();
-
-    // Draw vertical lines
-    for (var i = 0; i <= verticalLines; i++) {
-      final x = i * spacing;
-      final opacity = (1 - (x / size.width)).clamp(0.0, 1.0);
-      paint.color = primaryColor.withOpacity(opacity * (1 - progress));
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
-    }
-
-    // Draw horizontal lines
-    for (var i = 0; i <= horizontalLines; i++) {
-      final y = i * spacing;
-      final opacity = (1 - (y / size.height)).clamp(0.0, 1.0);
-      paint.color = secondaryColor.withOpacity(opacity * progress);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(GridPainter oldDelegate) =>
-      progress != oldDelegate.progress ||
-      primaryColor != oldDelegate.primaryColor ||
-      secondaryColor != oldDelegate.secondaryColor;
 } 

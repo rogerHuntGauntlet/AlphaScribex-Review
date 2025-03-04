@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Divider;
 import 'package:provider/provider.dart';
 import '../models/writing_project.dart';
 import '../services/writing_project_service.dart';
@@ -35,6 +36,9 @@ class _WritingEditorScreenState extends State<WritingEditorScreen> with SingleTi
   
   // Animation controller for the background grid
   AnimationController? _gridAnimationController;
+
+  // Add this field to track loading state for each sentence
+  final Map<String, bool> _loadingExamples = {};
 
   @override
   void initState() {
@@ -274,148 +278,359 @@ class _WritingEditorScreenState extends State<WritingEditorScreen> with SingleTi
     }
   }
 
-  Widget _buildAnalysisItem(String text, int score, bool isPerfect, String feedback, String suggestions) {
-    final isExpanded = _expandedItems[text] ?? false;
-    final color = isPerfect ? AppTheme.primaryNeon : AppTheme.primaryTeal;
+  Future<void> _showExamples(String text) async {
+    setState(() => _loadingExamples[text] = true);
     
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _expandedItems[text] = !isExpanded;
-        });
-      },
-      child: AnimatedContainer(
-        duration: AppTheme.durationFast,
-        margin: EdgeInsets.only(bottom: AppTheme.spacingM),
-        padding: EdgeInsets.all(AppTheme.spacingM),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(AppTheme.radiusM),
-          border: Border.all(
-            color: color.withOpacity(0.3),
-          ),
-          boxShadow: AppTheme.neonShadow(color),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    try {
+      final examples = await _aiService.getSimilarExamples(text);
+      
+      if (mounted) {
+        showCupertinoModalPopup(
+          context: context,
+          builder: (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: EdgeInsets.all(AppTheme.spacingL),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundDark,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppTheme.radiusXL),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Similar Examples',
+                      style: AppTheme.headingMedium.copyWith(
+                        color: CupertinoColors.white,
+                        shadows: AppTheme.neonShadow(AppTheme.primaryLavender),
+                      ),
+                    ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: Icon(
+                        CupertinoIcons.xmark_circle_fill,
+                        color: AppTheme.primaryLavender,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                SizedBox(height: AppTheme.spacingL),
+                Text(
+                  'Your sentence:',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: CupertinoColors.white.withOpacity(0.7),
+                  ),
+                ),
+                SizedBox(height: AppTheme.spacingS),
                 Container(
-                  width: 40,
-                  height: 40,
+                  padding: EdgeInsets.all(AppTheme.spacingM),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _getScoreColor(score).withOpacity(0.2),
+                    color: AppTheme.surfaceDark,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusM),
                     border: Border.all(
-                      color: _getScoreColor(score),
-                      width: 2,
+                      color: AppTheme.primaryLavender.withOpacity(0.3),
                     ),
-                    boxShadow: AppTheme.neonShadow(_getScoreColor(score)),
                   ),
-                  child: Center(
-                    child: Text(
-                      score.toString(),
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: _getScoreColor(score),
-                        fontWeight: FontWeight.bold,
-                      ),
+                  child: Text(
+                    text,
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: CupertinoColors.white,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                 ),
-                SizedBox(width: AppTheme.spacingM),
+                SizedBox(height: AppTheme.spacingL),
+                Text(
+                  'Similar sentences by famous writers:',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: CupertinoColors.white.withOpacity(0.7),
+                  ),
+                ),
+                SizedBox(height: AppTheme.spacingM),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        text.length > 50 ? '${text.substring(0, 50)}...' : text,
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: CupertinoColors.white,
-                          fontWeight: FontWeight.w600,
+                  child: ListView.builder(
+                    itemCount: examples.length,
+                    itemBuilder: (context, index) {
+                      final example = examples[index];
+                      return Container(
+                        margin: EdgeInsets.only(bottom: AppTheme.spacingM),
+                        padding: EdgeInsets.all(AppTheme.spacingM),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceDark,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                          border: Border.all(
+                            color: AppTheme.primaryNeon.withOpacity(0.3),
+                          ),
                         ),
-                      ),
-                      SizedBox(height: AppTheme.spacingXS),
-                      Row(
-                        children: [
-                          Icon(
-                            isPerfect ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.info_circle_fill,
-                            color: color,
-                            size: 16,
-                          ),
-                          SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            isPerfect ? 'Perfect!' : 'Needs improvement',
-                            style: AppTheme.bodySmall.copyWith(
-                              color: color,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              example['text'],
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: CupertinoColors.white,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                AnimatedRotation(
-                  duration: AppTheme.durationFast,
-                  turns: isExpanded ? 0.5 : 0,
-                  child: Icon(
-                    CupertinoIcons.chevron_down,
-                    color: color,
-                    size: 20,
+                            SizedBox(height: AppTheme.spacingS),
+                            Text(
+                              '— ${example['author']}',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: CupertinoColors.white.withOpacity(0.7),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            if (example['work'] != null) ...[
+                              SizedBox(height: AppTheme.spacingXS),
+                              Text(
+                                'from "${example['work']}"',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: CupertinoColors.white.withOpacity(0.7),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                            if (example['similarity'] != null) ...[
+                              SizedBox(height: AppTheme.spacingM),
+                              Container(
+                                padding: EdgeInsets.all(AppTheme.spacingS),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLavender.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                                  border: Border.all(
+                                    color: AppTheme.primaryLavender.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  example['similarity'],
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: CupertinoColors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
             ),
-            AnimatedCrossFade(
-              duration: AppTheme.durationFast,
-              crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to fetch examples: ${e.toString()}'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingExamples[text] = false);
+      }
+    }
+  }
+
+  Widget _buildAnalysisItem(String text, int score, bool isPerfect, String feedback, String suggestions) {
+    final isExpanded = _expandedItems[text] ?? false;
+    final color = isPerfect ? AppTheme.primaryNeon : AppTheme.primaryTeal;
+    final isLoading = _loadingExamples[text] ?? false;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(AppTheme.radiusL),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: AppTheme.neonShadow(color),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _expandedItems[text] = !isExpanded),
+            child: Container(
+              padding: EdgeInsets.all(AppTheme.spacingL),
+              child: Row(
                 children: [
-                  SizedBox(height: AppTheme.spacingM),
-                  Container(
-                    height: 1,
-                    color: color.withOpacity(0.3),
-                  ),
-                  SizedBox(height: AppTheme.spacingM),
-                  Text(
-                    'Feedback',
-                    style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: color,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          text,
+                          style: AppTheme.bodyLarge.copyWith(
+                            color: color,
+                            shadows: AppTheme.neonShadow(color),
+                          ),
+                        ),
+                        SizedBox(height: AppTheme.spacingS),
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacingS,
+                                vertical: AppTheme.spacingXS,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getScoreColor(score).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                                border: Border.all(
+                                  color: _getScoreColor(score).withOpacity(0.5),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Score: $score/10',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: _getScoreColor(score),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: AppTheme.spacingS),
+                            if (isPerfect)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: AppTheme.spacingS,
+                                  vertical: AppTheme.spacingXS,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryNeon.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                                  border: Border.all(
+                                    color: AppTheme.primaryNeon.withOpacity(0.5),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.star_fill,
+                                      size: 12,
+                                      color: AppTheme.primaryNeon,
+                                    ),
+                                    SizedBox(width: AppTheme.spacingXS),
+                                    Text(
+                                      'Perfect!',
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppTheme.primaryNeon,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    feedback,
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: CupertinoColors.white.withOpacity(0.9),
-                    ),
+                  Icon(
+                    isExpanded
+                        ? CupertinoIcons.chevron_up
+                        : CupertinoIcons.chevron_down,
+                    color: color,
                   ),
-                  if (suggestions.isNotEmpty) ...[
-                    SizedBox(height: AppTheme.spacingM),
-                    Text(
-                      'Suggestions',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: color,
-                      ),
-                    ),
-                    SizedBox(height: AppTheme.spacingXS),
-                    Text(
-                      suggestions,
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: CupertinoColors.white.withOpacity(0.9),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          if (isExpanded)
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacingL).copyWith(top: 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(
+                    color: color.withOpacity(0.2),
+                    height: AppTheme.spacingL,
+                  ),
+                  Text(
+                    'Feedback:',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingS),
+                  Text(
+                    feedback,
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: color.withOpacity(0.8),
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingM),
+                  Text(
+                    'Suggestions:',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingS),
+                  Text(
+                    suggestions,
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: color.withOpacity(0.8),
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingM),
+                  CupertinoButton(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingL,
+                      vertical: AppTheme.spacingM,
+                    ),
+                    color: AppTheme.primaryLavender.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isLoading)
+                          CupertinoActivityIndicator(
+                            color: AppTheme.primaryLavender,
+                          )
+                        else
+                          Icon(
+                            CupertinoIcons.book_fill,
+                            color: AppTheme.primaryLavender,
+                            size: 20,
+                          ),
+                        SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          isLoading ? 'Finding Examples...' : 'Show Examples',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.primaryLavender,
+                          ),
+                        ),
+                      ],
+                    ),
+                    onPressed: isLoading ? null : () => _showExamples(text),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

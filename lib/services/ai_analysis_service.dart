@@ -41,6 +41,59 @@ class AIAnalysisService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getSimilarExamples(String text) async {
+    final prompt = '''
+Find 3-5 similar sentences from famous writers that share similar structure, style, or theme with the following sentence. Consider the sentence's:
+1. Structure and syntax
+2. Literary devices used
+3. Thematic elements
+4. Tone and mood
+
+Sentence to analyze:
+$text
+
+Please provide examples in JSON format with the following structure:
+[
+  {
+    "text": "The example sentence",
+    "author": "Author's name",
+    "work": "Source work (if available)",
+    "similarity": "Brief explanation of how this example is similar"
+  }
+]
+''';
+
+    final response = await http.post(
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_apiKey',
+      },
+      body: jsonEncode({
+        'model': 'gpt-4',
+        'messages': [
+          {
+            'role': 'system',
+            'content': 'You are a literary expert with extensive knowledge of famous writers and their works. Provide relevant examples that can help writers improve their craft.'
+          },
+          {
+            'role': 'user',
+            'content': prompt
+          }
+        ],
+        'temperature': 0.7
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final examples = jsonDecode(data['choices'][0]['message']['content']) as List;
+      return examples.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to fetch similar examples: ${response.body}');
+    }
+  }
+
   String _buildPrompt(String text, int currentLevel) {
     switch (currentLevel) {
       case 0:
